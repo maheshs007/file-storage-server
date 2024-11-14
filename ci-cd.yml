@@ -1,0 +1,88 @@
+# Create CI-CD Pipeline
+
+name: ci-cd-pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    # Consideration: We are using github actions.
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run tests
+      run: |
+        python -m unittest discover -s tests
+      env:
+        TEST_ENV: "test"
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    # Consideration: We are using Docker hub to store Docker images.
+    # We can use any other Container registry or Cloud Container registry e.g. AWS ECR.
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Build Docker image
+      run: |
+        docker build -t docker-hub-user/fs-store:${{ github.sha }} .
+
+    # Consideration: We are scanning docker images for known vulnerabilities using Trivy tool.
+    # We have used https://github.com/aquasecurity/trivy-action for this.
+    - name: Scan Docker image for vulnerabilities
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: docker-hub-user/fs-store:${{ github.sha }}
+        severity: 'CRITICAL,HIGH'  # Only report HIGH and CRITICAL vulnerabilities
+        ignore-unfixed: true
+        exit-code: 1  # Fail the step if vulnerabilities are found
+
+    - name: Push Docker image
+      if: success()  # Only push if the scan is successful
+      run: |
+        docker tag docker-hub-user/fs-store:${{ github.sha }} docker-hub-user/fs-store:latest
+        docker push docker-hub-user/fs-store:${{ github.sha }}
+        docker push docker-hub-user/fs-store:latest
+
+# Consideration, same pipeline can be used to deploy on server.
+  deploy:
+    runs-on: ubuntu-latest
+    needs: docker
+    steps:
+    - name: SSH into server and deploy
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USERNAME }}
+        password: ${{ secrets.SERVER_PASSWORD }}
+        script: |
+          docker pull docker-hub-user/fs-store:latest
+          docker stop fs-store || true
+          docker rm fs-store || true
+          docker run -d --name fs-store -p 8000:8000 docker-hub-user/fs-store:latest
