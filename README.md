@@ -5,11 +5,12 @@ This project provides a simple file storage server written in Python with a comm
 
 # Build and Run the server locally, please follow below procedure.
 ## Installation
-#### Note: Please download or git clone repository and be in directory file-storage-server.
+#### Note: Please download or git clone this repository and be in directory file-storage-server.
 
 ### Run with Docker
 1. Build the docker container image:
    ```bash
+   cd file-storage-server
    docker build -t file-storage-server .
    ```
 
@@ -60,6 +61,29 @@ We can use `fs-store` command to do file operations.
   ```bash
   fs-store delete-file yourfile.txt
   ```
+
+## Testing
+
+Testing is an essential part of ensuring the quality and stability of the file storage server. 
+This repository includes three key test files to verify the functionality of file storage server.
+
+### Test Files and Their Purpose
+
+1. **`test_upload_file.py`**:
+   - **Purpose**: This test file contains tests for the file upload functionality. It verifies that the server correctly handles file uploads via the API, ensuring that files are saved to the server and that appropriate responses are returned, including handling of scenarios where the file already exists.
+
+2. **`test_list_file.py`**:
+   - **Purpose**: This test file focuses on the functionality of listing the files that have been uploaded to the server. It ensures that the server can correctly retrieve and return the list of files currently stored in the upload directory.
+
+3. **`test_delete_file.py`**:
+   - **Purpose**: This test file tests the file deletion functionality. It verifies that files can be deleted correctly through the API, and handles cases where a non-existent file is requested for deletion.
+
+### Running Tests
+
+To run the tests, we can use `pytest`:
+```bash
+pytest
+```
 
 ## Pre-commit Hooks
 
